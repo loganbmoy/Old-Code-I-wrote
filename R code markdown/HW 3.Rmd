@@ -1,0 +1,102 @@
+---
+title: "HW 3"
+author: "Logan Moy"
+date: "2024-03-30"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readxl)
+library(dplyr)
+library(moments)
+library(readr)
+library(ggplot2)
+library(tidyr)
+```
+
+## Bean
+
+Reusing Old Code
+```{r}
+beandata <- read_xlsx("C:\\Users\\lbmoy2\\Downloads\\lbmoy2_beans.xlsx")
+
+modbean <- beandata %>%
+             select(-c(Eccentricity, Solidity)) %>%
+               rename("LengthMaj" = MajorAxisLength, "LengthMin" = MinorAxisLength) %>%
+                 filter(Class %in% c("CALI", "HOROZ", "SEKER", "SIRA", "DERMASON")) %>%
+                   mutate("AvgMaj" = mean(LengthMaj), "AvgMin" = mean(LengthMin) ) %>%
+                     mutate("PerimCate" = if_else(Perimeter > 804.048, "Largest", if_else(Perimeter > 706.901, "Medium", "Lowest"))) %>%
+                       arrange(desc(Extent))
+```
+
+
+Correlation matrix
+```{r}
+cor(beandata[, c("Area", "Perimeter", "AspectRatio", "ConvexArea", "EquivDiameter")], use = "complete.obs")
+```
+
+
+
+GGplot bar plot
+```{r}
+g <-ggplot(data = modbean, aes(x = Class, fill = PerimCate))+ labs(title = "Count of types of Beans by Perimeter category")
+g + geom_bar(position = "dodge")
+```
+
+
+GGplot histogram
+```{r}
+h <- ggplot(data = modbean, aes(x = Extent)) + geom_histogram() + labs(title = "Extent with density for beans")
+h + geom_density(color = "red")
+```
+
+
+
+Ggplot histogram for all class
+```{r}
+h <- ggplot(data = modbean, aes(x = Extent)) + geom_histogram() + geom_density(color = "red") + labs(title = "Extent with density across all Classes")
+h + facet_wrap(~Class) 
+```
+
+
+## Open Ended part
+Reusing data that interested me
+URL : https://archive.ics.uci.edu/dataset/42/glass+identification
+
+Why it interests me: I just picked this out because it said glass and I think reflections are cool. The contents don't interest me too much, nor do I know why this data is important.
+```{r}
+glassdata <- read_csv("C:\\Users\\lbmoy2\\Downloads\\glass+identification\\glass.data", col_names = FALSE, show_col_types = FALSE) %>%
+  rename("Id" = X1,
+         "Refrac_index" = X2,
+         "Sodium" = X3,
+         "Magnesium" = X4,
+         "Aluminum" = X5,
+         "Silicon" = X6,
+         "Potassium" = X7,
+         "Calcium" = X8,
+         "Barium" = X9,
+         "Iron" = X10,
+         "Type_of_glass" = X11)
+
+gd1 <- glassdata %>%
+  group_by(Type_of_glass) %>%
+    summarize( max = max(Refrac_index))
+gd2 <- glassdata %>%
+  summarize(smean = mean(Sodium), mmean = mean(Magnesium),amean = mean(Aluminum),simean = mean(Silicon),pmean = mean(Potassium),cmean = mean(Calcium),bmean = mean(Barium),imean = mean(Iron))
+
+modgd2 <-gd2 %>% pivot_longer(cols = 1:8, names_to = "means", values_to = "percentage")
+```
+
+
+Graphing questions of interest
+1) What is the max refraction index?
+
+2) How do the measures of center of the elements compare to one another?
+```{r}
+u <- ggplot(data = gd1, aes(x = Type_of_glass, y= max )) + geom_point()
+u + labs(title = "Max refraction index")
+a <- ggplot(data = modgd2, aes(x =means, y = percentage )) + geom_col()
+a + labs(title = "Comparing means compositions of elements for glass")
+```
+

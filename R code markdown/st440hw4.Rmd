@@ -1,0 +1,155 @@
+---
+title: "st440hw4"
+author: "Logan Moy"
+date: "2025-02-28"
+output: pdf_document
+---
+
+
+```{r}
+install.packages("rjags")
+library(rjags)
+```
+
+
+## Question 1
+A) Maximum a posteriori estimation: MAP is faster/easier than integration. This is still a single point estimate; the situation could require more than just that.
+B) Numerical integration: If the mean and variance are all that are needed, you can use integration. This method is held back by the amount of calculations needed for higher dimesions and complex equations with lots of parameters.
+C) Bayesian CLT: Approximates a posterior as a normal distribution, makes things very simple when we have a large sample size. However we need a large sample size to use this method.
+D) Gibbs sampling: Can be used for models with higher dimesions, this involves deriving a joint posterior distribution and computing power (can't do by hand). The get this posterior a conjugate prior
+E) Metropolis-Hasting sampling: Can be used for nearly any type of model. This method does not need any deriving and can be done by choosing a good tuning value. A disadvantage of using this method is that the algorithm may not converge. 
+
+## Question 5 A-C
+A) This could be a model of the number (Y) pests in a dewelling over a period of time (n). The model compares the difference between Ys over time 
+(trying to see if pests leave over time and/or if we assign a treatment onto the dewelling).
+```{r}
+# Given Parameters
+n <- 50
+m <- 50
+actual_mu <- 10
+actual_delta <- 1
+actual_sigma <- 2
+
+#Distributions
+y1 <- rnorm(n,actual_mu, actual_sigma)
+y2 <- rnorm(m, actual_mu + actual_delta, actual_sigma)
+ycom <- c(y1,y2)
+
+# Gibbs
+S <- 10000
+prior_var <- 100^2
+gam <- 0.01
+mu <- mean(ycom)
+sigmasq <- var(ycom)
+delta <- 0
+matrix_values <- matrix(0,S,3)
+
+for(i in 1:S){
+  # mu 
+  prec <- (n + m) / sigmasq + 1 / prior_var     
+  mn <- sum(ycom[1:n]) / sigmasq + sum(ycom[1:m + n] - delta) / sigmasq
+  mu <- rnorm(1, mn / prec, 1 / sqrt(prec))
+
+  # delta
+  prec <- m / sigmasq + 1 / prior_var    
+  mn <- sum(ycom[1:m + n] - mu)/ sigmasq
+  delta <- rnorm(1, mn / prec, 1 / sqrt(prec))
+
+  # sigma2 
+  SSnm <- sum((ycom[1:n] - mu)^2) + sum((ycom[1:m + n] - mu - delta)^2)
+  sigma2 <- 1 / rgamma(1,gam + (m + n)/2, SSnm / 2 + gam)
+   
+  # Saving values
+  matrix_values[i,] <- c(mu, delta, sigma2)
+}
+```
+
+## Ploting mu
+```{r}
+plot(matrix_values[,1],type="l",ylab="mu")
+```
+
+## Ploting del
+```{r}
+plot(matrix_values[,2],type="l",ylab="delta")
+```
+
+## Ploting sig
+```{r}
+plot(matrix_values[,3],type="l",ylab="sigmasq")
+```
+
+## Question 6
+
+A) This is a reasonable prior as beta works well with proportions/percent chance of event occuring. The data is centered around the qi.
+B) This affects the prior distribution by giving a weight to the qi or proportion made.
+
+# Data
+``` {r}
+ovprop <- c(0.845,0.847,0.880,0.674,0.909, 0.898,0.770,0.801,0.802,0.875)
+makes <- c(64,72,55,27,75,24,28,66,40,13)
+totalattempts <- c(75,95,63,39,83,26,41,82,54,16)
+player <- c("RW","JH","KL","LJ","IT","SC","GA","JW","AD","KD")
+```
+
+# Not Jags
+```{r}
+S <- 10000
+m <- 0
+theta <- ovprop
+m_sam <- numeric(S)
+matrix_player <- matrix(0, S, 10)
+for (j in 1:S) {
+  for (i in 1:10) {
+    alpha <- makes[i] + exp(m) * ovprop[i]
+    beta <- totalattempts[i] - makes[i] + exp(m) * (1 - ovprop[i])
+    theta[i] <- rbeta(1, alpha, beta)
+  }
+  mdist <- rnorm(1, m, sd= 0.1)
+  matrix_player[j,] <- theta
+  m <- mdist
+  m_sam[j] <- mdist
+  
+}
+posterior_mean <- apply(matrix_player, 2, mean)
+CI <- apply(matrix_player, 2, quantile, probs = c(0.025,0.975))
+results <- data.frame(Player = player, Posterior_Mean = posterior_mean, lower = CI[1,], upper = CI[2,])
+print(results)
+plot(m_sam, type ="l")
+```
+
+#Jags
+```{r}
+
+
+model_string <- textConnection("model {
+  #Likelihood
+  for (i in 1:n) {
+  Y[i] ~ dbin(theta[i], totalattempts[i])
+  theta[i] ~ dbeta(alpha[i], beta[i])
+  alpha[i] <- exp(m) * ovprop[i]
+  beta[i] <- exp(m) * (1 - ovprop[i])
+  }
+  
+  # Priors
+  m ~ dnorm(0,0.01)
+                               }")
+data <- list(Y = makes, n = 10, ovprop = ovprop, totalattempts = totalattempts)
+
+#Not sure what to put here, m = 0 alone does not work
+#inits <- list(theta =rbeta(1,makes,totalattempts - makes) ,m=0)
+
+# modelPlay <- jags.model(model_string, data = data, n.chains = 2, quiet = TRUE)
+# update(modelPlay, 10000, progress.bar = "none")
+# params < c("theta","m")
+# #Throws error of no valid monitors set
+# 
+# samples <- coda.samples(modelPlay, variable.names = params, n.iter = 10000, progress.bar = "none")
+# summary(samples)
+# plot(samples)
+
+```
+
+
+
+F) JAGs will have less code to write as you are following a format. Another disadvantage for me is the errors that Jags is throwing are probably harder to understand. Also don't need to derive anything for JAGS. JAGs will provide correct results for the models/distributions given, custom code has issues if you make it incorrectly (can get wrong results from executable code). Most likely messed up m for custom as it is all over the place.

@@ -1,0 +1,26 @@
+---
+title: "ica 6"
+author: "Logan Moy"
+date: "2024-02-28"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyr)
+library(dplyr)
+library(readr)
+library(readxl)
+```
+
+## ica6
+
+```{r}
+namevec <- c('ARG', 'AUS', 'BRA', 'CAN', 'CHN', 'FRA', 'DEU', 'IND', 'IDN', 'ITA',
+'JPN', 'MEX', 'KOR', 'RUS', 'SAU','ZAF', 'TUR')
+country <-read_xlsx("C:\\Users\\lbmoy2\\Downloads\\WDIEXCEL.xlsx") %>%
+  pivot_longer(cols = "1960":"2020", names_to = 'Year') %>%
+    filter(!is.na(value)) %>%
+      filter(Country_Code %in% namevec)
+
+```

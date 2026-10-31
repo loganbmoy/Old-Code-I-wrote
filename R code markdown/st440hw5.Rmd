@@ -1,0 +1,351 @@
+---
+title: "st440hw5r"
+author: "Logan Moy"
+date: "2025-03-19"
+output: pdf_document
+---
+## Jags
+```{r setup, include=FALSE}
+#install.packages("rjags")
+library(rjags)
+
+```
+
+## 3.9
+
+```{r}
+  # Y is num of home runs
+  data <- list(regY = 563, regN = 2820, worldY = 10, worldN = 27)
+
+  model_string <- textConnection("model{
+
+   # Likelihood
+    regY ~ dpois(regN * lambda1)
+    worldY ~ dpois(worldN * lambda2)
+
+   # Priors
+    lambda1 ~  dunif(0, 10)
+    lambda2 ~  dunif(0, 10)
+    ratio <- lambda2/lambda1
+ }")
+
+ inits <- list(lambda1 = 0.1,lambda2 = 0.1)
+ model <- jags.model(model_string, data = data, inits=inits, n.chains=2, quiet=TRUE)
+ update(model, 10000, progress.bar= "none")
+ params  <- c("lambda1","lambda2","ratio")
+ 
+ samples <- coda.samples(model, 
+            variable.names=params, 
+            n.iter=10000, progress.bar= "none")
+
+ 
+ plot(samples)
+ 
+ summary(samples)
+ 
+ effectiveSize(samples)
+ gelman.diag(samples)
+ 
+```
+
+Convergence: The Gel statistic are all exactly 1 and the effective sample sizes are also large (10K+).
+The trace plots also look good with a "barcode" shape and don't converge to a single point. All of this points to converging chains.
+
+## 4.1
+
+```{r}
+  # Setting up data for jags
+  nplace <- ntreat <- 6
+  placebo <- c(2.0, -3.1, -1.0, 0.2, 0.3, 0.4)
+  treat    <- c(-3.5, -1.6, -4.6, -0.9, -5.1, 0.1)
+   
+  meanplacebo <- mean(placebo)
+  meantreat <- mean(treat)
+  
+  s2pl   <- mean((placebo - meanplacebo)^2)
+  s2trt   <- mean((treat - meantreat)^2)
+  sp    <- sqrt((s2pl/2 + s2trt/2))
+
+  postmean <- meantreat - meanplacebo
+  postsd <- sp * sqrt( 1/nplace + 1/ntreat)
+  credset <- postmean + postsd * qt(c(0.025,0.975), df = nplace + ntreat)
+
+  print(postmean)
+  print(postsd)
+  print(credset)
+```
+
+# Difference
+```{r}
+  data <- list(n = 6, placebo = placebo, treat = treat)
+
+  model_string <- textConnection("model{
+
+   # Likelihood
+   for(i in 1:n){
+     placebo[i] ~ dnorm(mu ,tau)
+     treat[i] ~ dnorm( mu + delta ,tau)
+   }
+
+   # Priors
+   mu    ~  dnorm(0, 0.0001)
+   delta ~  dnorm(0, 0.0001)
+   tau   ~  dgamma(0.1, 0.1)
+   sigma <- 1/sqrt(tau)
+ }")
+
+ model <- jags.model(model_string, data = data, n.chains = 2, quiet = TRUE)
+ update(model, 10000, progress.bar="none")
+ params  <- c("delta")
+ samples <- coda.samples(model, 
+            variable.names=params, 
+            n.iter=50000, progress.bar="none")
+ summary(samples)
+
+```
+
+Delta is probably negative (quantile shows around 95% of the values for delta are negative). Since
+delta is negative that means the treatment succeeds in decreasing the patients' weight.
+
+Changing the prior results in small changes in the data that would not affect the interpretation.
+It would simply increase the values' extremity or make it so around 100% of values are negative.
+
+# Sensitive priors
+```{r}
+  data <- list(n = 6, placebo = placebo, treat = treat)
+
+  model_string <- textConnection("model{
+
+   # Likelihood
+   for(i in 1:n){
+     placebo[i] ~ dnorm(mu ,tau)
+     treat[i] ~ dnorm( mu + delta ,tau)
+   }
+
+   # Priors, can change dnorms mean to 1, increase sd. Also can change dgamma shape and scale
+   # dnorm: mean: 1,4 0,1
+   # dgamma: 1,1 10,10
+   mu    ~  dnorm(0, 0.0001)
+   delta ~  dnorm(0, 0.0001)
+   tau   ~  dgamma(0.1, 0.1)
+   sigma <- 1/sqrt(tau)
+ }")
+ 
+ model <- jags.model(model_string, data = data, n.chains = 2, quiet = TRUE)
+ update(model, 10000, progress.bar="none")
+ params  <- c("delta")
+ samples <- coda.samples(model, 
+            variable.names=params, 
+            n.iter=50000, progress.bar="none")
+ summary(samples)
+
+```
+
+
+## 4.2
+
+# Boston Data
+```{r}
+library(MASS)
+data(Boston)
+?Boston
+```
+
+# More set up
+```{r}
+# Data setup
+crim <- Boston[,1]
+zn <- Boston[,2]
+indus <- Boston[,3]
+chas <- Boston[,4]
+nox <- Boston[,5]
+rm <- Boston[,6]
+age <- Boston[,7]
+dis <- Boston[,8]
+rad <- Boston[,9]
+tax <- Boston[,10]
+ptratio <- Boston[,11]
+black <- Boston[,12]
+lstat <- Boston[,13]
+medv <- Boston[,14]
+```
+
+# Scaling and na values
+```{r}
+X <- cbind(crim, zn, indus,
+           chas, nox, rm, age, dis, rad,
+           tax, ptratio, black,
+           lstat, medv)
+
+X <- as.matrix(scale(X))
+
+# Missing data
+miss <- is.na(rowSums(X))
+X <- X[!miss,]
+medv <- medv[!miss]
+
+# Names
+vname <- c("Intercept", "crim", "zn", "indus",
+           "chas", "nox", "rm", "age", "dis", "rad",
+           "tax", "ptratio", "black",
+           "lstat", "medv")
+
+n <- length(medv)
+p <- ncol(X)
+data2 <- list(Y = medv, X = X, n = n, p = p)
+params <- c("alpha", "beta")
+
+
+```
+
+# Jags for 4.2a
+```{r}
+# Jags
+model_string2 <- textConnection("model {
+
+  # Likelihood
+  for (i in 1:n) {
+    Y[i] ~ dnorm(alpha + inprod(X[i,],beta[]),taue)
+  }
+  # Priors
+    for(j in 1:p){
+      beta[j] ~ dnorm(0, 0.001)
+    }
+    alpha ~ dnorm(0, 0.001)
+    taue  ~ dgamma(0.1, 0.1)            
+}")
+
+model2 <- jags.model(model_string2, data = data2, n.chains = 2,quiet = TRUE)
+update(model2, 10000, progress.bar = "none")
+samples2 <- coda.samples(model2, variable.names = params,thin = 10, n.iter = 20000, progress.bar = "none")
+
+sum <- summary(samples2)
+rownames(sum$statistics) <- vname
+rownames(sum$quantiles)  <- vname
+effectiveSize(samples2)
+gelman.diag(samples2)
+sum
+
+```
+Looks like the dist converges as Gel stat is exactly 1 for most and the effect sample size is 1k+, cant graph as the margins are too large.
+Could run longer.
+The summaries are in the quantiles and means. 
+
+# LM for 4.2b
+```{r}
+modellm <- lm( medv ~
+            scale(crim) + scale(zn) + scale(indus) +
+           scale(chas) + scale(nox) + scale(rm) + scale(age) + scale(dis) + scale(rad) +
+           scale(tax) + scale(ptratio) + scale(black) +
+           scale(lstat), data = data2)
+summary(modellm)
+```
+Results are different .
+The Bayesian model attempts to find the best interval for each parameter and estimate a posterior distribution with it. 
+While the lm function tries to minimize squares to fit a curve. Should lead to the same results.
+
+# Double exp priors for 4.2c
+```{r}
+ model_stringbl <- textConnection("model{
+   # Likelihood
+    for(i in 1:n){
+      Y[i] ~ dnorm(alpha+inprod(X[i,],beta[]),taue)
+    }
+   # Priors
+    for(j in 1:p){
+      beta[j] ~ ddexp(0,taue*taub)
+    }
+    alpha ~ dnorm(0,0.001)
+    taue  ~ dgamma(0.1, 0.1)
+    taub  ~ dgamma(0.1, 0.1)
+ }")
+
+model3 <- jags.model(model_stringbl, data = data2, n.chains = 2,quiet = TRUE)
+update(model3, 10000, progress.bar = "none")
+samples3 <- coda.samples(model3, variable.names = params, thin = 10, n.iter = 20000, progress.bar = "none")
+
+
+```
+# Summary of 4.2c
+```{r}
+sumbl <- summary(samples3)
+rownames(sumbl$statistics) <- vname
+rownames(sumbl$quantiles)  <- vname
+sumbl
+```
+The results are smaller, but as the uniformative is close to zero the results aren't too different.
+This is different because the BLASSO, BL, model allows for the coef to be set to basically zero, while the gaussian are usually larger.
+
+# Fitting 4.2a again for 4.2d
+```{r}
+Yo    <- medv[1:500]    # Observed data
+Xo    <- X[1:500,]
+
+Yp    <- medv[501:506]     # Counties set aside for prediction
+Xp    <- X[501:506,]
+no    <- length(Yo)
+np    <- length(Yp)
+data4 <- list(Yo=Yo,no=no,np=np,p=p,Xo=Xo,Xp=Xp) 
+
+params = c("alpha", "beta", "Yp")
+model_string4 <- textConnection("model {
+
+  # Likelihood
+  for (i in 1:no) {
+    Yo[i] ~ dnorm(alpha + inprod(Xo[i,],beta[]),taue)
+  }
+  
+    # Prediction
+  for(i in 1:np){
+    Yp[i]  ~ dnorm(mup[i],taue)
+    mup[i] <- alpha + inprod(Xp[i,],beta[])
+  }
+  # Priors
+    for(j in 1:p){
+      beta[j] ~ dnorm(0, 0.001)
+    }
+    alpha ~ dnorm(0, 0.001)
+    taue  ~ dgamma(0.1, 0.1)            
+}")
+model4 <- jags.model(model_string4, data = data4, n.chains = 2,quiet = TRUE)
+update(model4, 10000, progress.bar = "none")
+samples4 <- coda.samples(model4, variable.names = params,thin = 10, n.iter = 20000, progress.bar = "none")
+
+```
+
+# Checking data for s4
+```{r}
+summary(samples4[,-c(1:np)])
+```
+
+# Plotting ppd
+```{r}
+#Extract the samples for each parameter
+
+ samples4s <- samples4[[1]]
+ Yp.samples4s <- samples4s[,1:np] 
+ alpha.samples4s <- samples4s[,np+1]
+ beta.samples4s <- samples4s[,np+1+1:p]
+
+# Compute the posterior mean for the plug-in predictions  
+
+ beta.mn <- colMeans(beta.samples4s)
+ alpha.mn <- mean(alpha.samples4s) 
+
+
+# Plot the PPD and plug-in
+
+ for(j in 1:6){
+
+    # PPD
+    plot(density(Yp.samples4s[,j]))
+
+    # Truth
+    abline(v=Yp[j],col=2,lwd=2)
+
+    legend("topright",c("PPD","Truth"),col=1:2,lty=1,inset=0.05)
+ }
+```
+Looks reasonable as the peak of the densities are around of the abline of the true values.
+
+

@@ -1,0 +1,58 @@
+---
+title: "ica 9"
+author: "Logan Moy"
+date: "2024-04-10"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r}
+value = c(1)
+for (i in 1:10) {
+
+  value <- value*i
+}
+value
+
+
+```
+```{r}
+factorial <- function(value = 10) {
+  if (value >= 100) stop 
+  if (value < 100)
+    factor <-c(1)
+    for (i in 1:value) {
+    factor <- factor*i
+    return(factor)
+    }}
+
+factorial(value = 11)
+
+```
+```{r}
+convert_cm_to_in <-function(cm, roundplace =2) {
+  value = cm/2.54
+  value <- round(value, digits =roundplace)
+  return(value)
+}
+
+convert_cm_to_in(25)
+convert_cm_to_in(c(1:100))
+```
+
+
+```{r}
+count_my_change <- function(dollars = 0, quarters = 0, dimes =0, nickels =0, pennies = 0) {
+  amount <- dollars + 0.25 * quarters + 0.1 * dimes + 0.05 * nickels + 0.01 * pennies
+  return('Your total is $amount')}
+
+count_my_change(1, 2)
+```
+
+
+

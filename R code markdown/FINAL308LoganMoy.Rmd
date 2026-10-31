@@ -1,0 +1,113 @@
+---
+title: "Final308LoganMoy"
+author: "Logan Moy"
+date: "2024-04-16"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(knitr)
+```
+
+## Part 1
+
+#Reading in data and making an altered tibble
+
+```{r}
+housedata <-read_csv("https://www4.stat.ncsu.edu/~online/ST308/Data/lbmoy2_house.csv")
+
+housedata2 <- housedata %>% filter(LotShape != "IR2or3"&YearRemodAdd > 1963) %>% 
+            mutate("SaleinHT" = SalePrice/100000) %>%
+  select(-c(BsmtFinSF1, Neighborhood))
+
+kable((housedata2)[1:10,1:6], format = "simple")
+```
+
+
+
+#Summary statistics of housedata
+```{r}
+sumhd2 <- housedata %>% group_by(Electrical) %>%
+          summarize(meanSP = mean(SalePrice), stdSP = sd(SalePrice), quart1SP = quantile(SalePrice,probs = .25), quart3SP = quantile(SalePrice,probs = .75), 
+                    meanGC = mean(GarageCars), stdGC = sd(GarageCars), quart1GC = quantile(GarageCars,probs = .25), quart3GC = quantile(GarageCars,probs = .75),
+                    meanYB = mean(YearBuilt), stdYB = sd(YearBuilt), quart1YB = quantile(YearBuilt,probs = .25), quart3YB = quantile(YearBuilt,probs = .75))
+
+kable((sumhd2), format = "simple")
+```
+
+
+#Creating graphs and models
+```{r}
+g <-ggplot(housedata, aes(x = GarageCars, y = SalePrice, color = Electrical))
+g + geom_point()
+```
+Most of the Electrical types seem to be SBrkr and fewer are FuseA. Initally there is a mostly positive relationship between Garage car count and sales price, this changes with a count of 4 garage cars (this category has few data points so if there was more data a positive relationship still could be found).
+
+#Creating a MLR model
+```{r}
+houselm <-lm(SalePrice~ GarageCars + YearBuilt, data = housedata)
+
+summary(houselm)
+
+predict(houselm, newdata = data.frame(GarageCars = c(2,4), YearBuilt= c(1977, 2000)))
+```
+Both of the main effects are significant as both are less than 0.01. There is significant evidence that Garage Cars and Year Built have an effect on the Sale Price.
+
+## Part 2 Open Ended
+
+#Old code to read in dataset
+Reusing data that interested me
+URL : https://archive.ics.uci.edu/dataset/42/glass+identification
+
+Why it interests me: I just picked this out because it said glass and I think reflections are cool. The contents don't interest me too much, nor do I know why this data is important.
+1)
+2)
+
+```{r}
+glassdata <- read_csv("C:\\Users\\lbmoy2\\Downloads\\glass+identification\\glass.data", col_names = FALSE, show_col_types = FALSE) %>%
+  rename("Id" = X1,
+         "Refrac_index" = X2,
+         "Sodium" = X3,
+         "Magnesium" = X4,
+         "Aluminum" = X5,
+         "Silicon" = X6,
+         "Potassium" = X7,
+         "Calcium" = X8,
+         "Barium" = X9,
+         "Iron" = X10,
+         "Type_of_glass" = X11)
+
+```
+
+# Custom Function for data of interest
+```{r}
+ncols <- ncol(glassdata)
+DF <-data.frame(varName = names(glassdata)[-nols],
+                mean = numeric(ncols-1),
+                median = numeric(ncols-1),
+                lquanitle = numeric(ncols-1),
+                hquanitle = numeric(ncols-1))
+glassfunction = function(data, cols, group = NULL) {
+  for(i in seq_along(data)[-ncols]){
+    coldata <-pull(data, i)
+    sumDF[i, 2:5] <-c(mean(coldata), median(coldata), quantile(coldata, probs = 0.05),quantile(coldata, probs = 0.95))
+   
+  }
+  
+   return(DF, table)
+}
+             
+```
+
+mean = 0
+  var = 0
+  lquantile = 0
+  hquantile = 0
+  finallist = list()
+  table = "NA"
+
+
+q1 <- glassfunction(glassdata, c(glassdata$Refrac_index, glassdata$Iron) )
+q2 <- glassfunction(glassdata, c(glassdata$Id, glassdata$Type_of_glass) )
+q3 <-  glassfunction(glassdata, c(glassdata$Sodium, glassdata$Silicon, glassdata$Potassium) )

@@ -1,0 +1,59 @@
+---
+title: "r hw1"
+author: "Logan Moy"
+date: "2024-02-07"
+output: 
+  html_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+
+library(readxl)
+```
+
+## Questions
+
+```{r}
+
+print("A list is a heterogeneous, one dimensional object that is used to hold items." ) 
+
+
+print("A delimiter is a character that is used to separate multiple objects/variables.") 
+```
+
+## Reading in Data online
+
+```{r}
+datacsv <-read_csv("https://www4.stat.ncsu.edu/~online/ST308/Data/lbmoy2_balance-scale.csv", show_col_types = FALSE)
+
+rd <- datacsv$Right_Distance
+
+
+meanrd <- mean(rd, na.rm = TRUE)
+
+print(meanrd)
+```
+
+## Reading in Data Hep
+
+```{r}
+hepdata <-read_tsv("C:\\Users\\lbmoy2\\Downloads\\lbmoy2_hepatitis.tsv", col_names = FALSE, show_col_types = FALSE)
+
+colnames(hepdata) <- c("MALAISE", "VARICES", "FATIGUE", "HISTOLOGY" , "ALBUMIN")
+
+print(hepdata , n = 23)
+```
+
+
+
+## Reading in Data abalone
+
+```{r}
+abalonedata <-read_excel("C:\\Users\\lbmoy2\\Downloads\\lbmoy2_abalone.xlsx")
+
+subabalone <- abalonedata[c(1:5), 2]
+```

@@ -1,0 +1,143 @@
+---
+title: "st440hw2"
+author: "Logan Moy"
+date: "2025-02-07"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(MASS)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+xpoints <- c(-3.3, 0.1, -1.1, 2.7, 2, -0.4)
+ypoints <- c(--2.6, -0.2, -1.5, 1.5, 1.9, -0.3)
+xseq <-seq(-4,4)
+prior <- dunif(xseq,min =-1, max=1)
+sig1 <- 1
+sig2 <-1
+meanx <- 0
+meany <-0
+rho <- cor(xpoints, ypoints)
+
+# func2 <- function(x,y){ 
+#   z1 <- (xpoints - meanx) / sig1
+#   z2 <- (ypoints - meany) / sig2
+#   ((2 * pi * sig1 * sig2 * ((1-2**2)**.5))**-1) * exp((- x**2 - 2*2 *x*y + y**2 )/ 2*(1-2**2))
+# 
+# } 
+#binormData <- dnorm(rho * ypoints, 1 - rho**2)
+bvnData <- mvrnorm(
+  n = 100, 
+  mu = c(0, 0), 
+  Sigma = matrix(c(1, rho, rho, 1), 
+                 ncol = 2)
+  )
+
+#posterior <- mapply(func2,xpoints,ypoints) *prior
+  
+plot(xpoints,ypoints)
+#plot(binormData)
+plot(density(bvnData * prior))
+#plot(dnorm2d(xpoints,ypoints))
+lines(xseq, prior, col = "Green")
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r Prob13}
+y <- seq(0, 1, 0.0001)
+rainforest <- dbeta(y,25,10)
+deforest <- dbeta(y,10,15)
+p=0.1
+Avg <- rainforest * (1-p) + deforest * (p)
+
+plot(y,rainforest,lwd = 1 ,col = "blue",ylab="Density of pixels")
+lines(y,deforest,lwd = 1,col = "red")
+lines(y,NDVI,lwd = 1,col = "purple")
+  legend("topright",c("rainforest","deforest","Avg"),
+                   lwd=2,col=c("blue","red","purple"))
+  
+posterior <- p * deforest / (Avg)
+plot(y,posterior)
+abline(0.9,0)
+abline(v=0.5)
+abline(v=.45)
+# We would be 90% sure that the pixel was deforested if we have a 
+#NDVI of ~45 or less
+
+```
+
+```{r prob 17}
+#Plot the player i's proportion of successful clutches given by Y makes over n total attempts
+#Prior is Beta(a,b) with a=1=b for uniform, Likelihood is Binomial(n,theta)
+#Posterior would be beta (y+a n-y+b)
+ovprop <- c(0.845,0.847,0.880,0.674,0.909, 0.898,0.770,0.801,0.802,0.875)
+makes <- c(64,72,55,27,75,24,28,66,40,13)
+totalattempts <- c(75,95,63,39,83,26,41,82,54,16)
+player <- c("RW","JH","KL","LJ","IT","SC","GA","JW","AD","KD")
+priora <- 1
+priorb <- 1
+theta <- seq(0,1,0.0001)
+plot(theta, dbeta(theta, makes + priora, totalattempts- makes + priorb), ylab = "Density",col = 1:10)
+legend("topleft", player, lwd =2, col = 1:10)
+
+```
+
+```{r prob 17}
+#Table of 95 CredI
+lowerBound <- qbeta(0.05/2, makes + priora, totalattempts- makes + priorb )
+upperBound <- qbeta(1- 0.05/2, makes + priora, totalattempts- makes + priorb )
+table <- data.frame(
+  lowerBound <- round(qbeta(0.05/2, makes + priora, totalattempts- makes + priorb ),2),
+   upperBound <- round(qbeta(1- 0.05/2, makes + priora, totalattempts- makes + priorb ),2)
+)
+colnames(table) <- c("Lower 95 Credible Interval", "Upper 95 Credible Interval")
+rownames(table) <- player
+table
+```
+```{r prob 17}
+prob <- round(pbeta(ovprop, makes + priora, totalattempts- makes + priorb ),2)
+cbind(player, prob)
+prob
+#As JH and GA have high prob it is most likely that their clutch proportion differs from the rest, both less
+#as CDF is < 
+```
+```{r prob 17}
+priora <- 0.5
+priorb <- 0.5
+prob <- round(pbeta(ovprop, makes + priora, totalattempts- makes + priorb ),2)
+cbind(player, prob)
+prob
+
+priora <- 5
+priorb <- 5
+prob2 <- round(pbeta(ovprop, makes + priora, totalattempts- makes + priorb ),2)
+cbind(player, prob2)
+prob2
+
+#Prior seems to have an effect, large values for a,b increase the prob
+#JH is consistently ~.99 prob
+```
+
+```{r prob 2}
+#Use Poisson-gamma model, for estimating rate of events
+#lambda rate is continuous and positive
+#Count number of runs in a season (0, number of games)
+#Count number of runs in series games (0, number of games)
+s <- 10000
+a <- 0.001
+b <- 0.001
+season <- rgamma(s,563 + a, 2820 + b)
+series <- rgamma(s,10 + a, 27 + b)
+mean(season>series)
+#mean is 0.047, very low. So Reggie Jackson performs better in series games than the normal season
+```

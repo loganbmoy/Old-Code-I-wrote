@@ -1,0 +1,41 @@
+---
+title: "ica 7"
+author: "Logan Moy"
+date: "2024-03-20"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(readr)
+library(ggplot2)
+```
+
+## R Markdown
+
+```{r setting up data}
+bankdata <-read_csv2("https://www4.stat.ncsu.edu/~online/datasets/bankData.txt", show_col_types = FALSE) %>%
+  rename("Subscription" = y) %>%
+    filter(age < 75, marital != "unknown")
+```
+
+```{r making graphs}
+p1 <-ggplot(data = bankdata, aes(x = duration)) 
+p1+ geom_density(alpha = 0.2, aes( fill = loan) ) +
+      xlim(0, 1500)
+
+```
+
+```{r}
+p1 <-ggplot(data = bankdata, aes(x = duration, y =marital)) 
+p1+ geom_boxplot() +
+        xlim(0, 5000) 
+```
+
+
+```{r}
+g <- ggplot(msleep, aes( x= awake, y = vore))
+g + boxplot(x = msleep$awake, y = msleep$vore)
+```

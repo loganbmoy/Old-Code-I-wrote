@@ -1,0 +1,39 @@
+---
+title: "ica5"
+author: "Logan Moy"
+date: "2024-02-21"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(readr)
+library(dplyr)
+
+```
+
+## Reading in hate
+
+```{r}
+hatedata <-read_tsv("C:\\Users\\lbmoy2\\Downloads\\hateCrime.tsv", col_names = FALSE, show_col_types = FALSE, na = c("."))
+
+as_tibble(hatedata) %>%
+  rename("state" = X1,
+         "med_inc" = X2,
+         "unemp" = X3,
+         "pop_metro" = X4,
+         "pop_hs" = X5,
+         "non_citizen" = X6,
+         "white_poverty" = X7,
+         "non_white" = X8,
+         "vote_trump" = X9,
+         "hate_crimes_per_100k" = X10,
+         "avg_hatecrimes_per_100k" = X11,
+         ) %>%
+  filter(!is.na(med_inc)) %>%
+  arrange(med_inc) %>%
+  select(!c(desc(med_inc) , non_white)) %>%
+  print()
+  
+```

@@ -1,0 +1,283 @@
+---
+title: "st440exam2"
+author: "Logan Moy"
+date: "2025-04-11"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(rjags)
+
+metaldata <- read.csv("S:\\R code markdown\\E2.csv")
+
+Y <- metaldata[,2]
+X <- metaldata[ , !(names(metaldata) %in% "CRP")]
+Xs <- scale(X)
+
+miss  <- is.na(Y+rowSums(Xs))
+Y <- Y[!miss]
+Xs <- Xs[!miss,]
+
+n <- length(Y)
+
+```
+
+
+```{r}
+for (i in 1:ncol(X)) {
+  plot(X[,i],Y)
+}
+```
+## Full model
+
+
+```{r}
+datare <- list(Y=Y,X=Xs,n=n,p=ncol(Xs))
+model_string <- textConnection("model{
+
+   # Likelihood
+   for(i in 1:n){
+     Y[i] ~ dnorm(alpha + inprod(X[i,],beta[]),tau1)
+   }
+
+   # Priors
+   for(j in 1:p){beta[j] ~  dnorm(0, 0.0001)}
+   alpha ~ dnorm(0,0.01)
+   tau1 ~ dgamma(0.01,0.01)
+   
+ }")
+modelre <- jags.model(model_string,data = datare, n.chains=2,quiet=TRUE)
+update(modelre, 10000, progress.bar="none")
+params <- c( "alpha","beta")
+samples <- coda.samples(modelre, variable.names=params, n.iter=10000, progress.bar="none")
+```
+
+
+# Trace
+
+```{r}
+par(mar = c(1, 1, 1, 1))
+plot(samples)
+```
+
+## Gel 1
+
+```{r }
+sumre <-summary(samples)
+gelman.diag(samples)
+```
+
+# PPC for Model 1
+```{r}
+datare <- list(Y=Y,X=Xs,n=n,p=ncol(Xs))
+model_string <- textConnection("model{
+
+   # Likelihood
+   for(i in 1:n){
+     Y[i] ~ dnorm(alpha + inprod(X[i,],beta[]),tau1)
+   }
+
+   # Priors
+   for(j in 1:p){beta[j] ~  dnorm(0, 0.0001)}
+   alpha ~ dnorm(0,0.01)
+   tau1 ~ dgamma(0.01,0.01)
+   
+  # PPC
+   for(i in 1:n){
+     Y2[i] ~ dnorm(alpha + inprod(X[i,],beta[]),tau1)
+   }
+   D[1] <- max(Y2[])
+   D[2] <- min(Y2[])
+   D[3] <- max(Y2[]) - min(Y2[])
+   D[4] <- mean(Y2[])
+   D[5] <- sd(Y2[])
+ }")
+modelre <- jags.model(model_string,data = datare, n.chains=2,quiet=TRUE)
+update(modelre, 10000, progress.bar="none")
+params <- c("D", "alpha","beta")
+samplesppc <- coda.samples(modelre, variable.names=params, n.iter=10000, progress.bar="none")
+```
+
+
+```{r}
+D1 <- samplesppc[[1]]
+D0 <- c(max(Y), min(Y), max(Y) - min(Y), mean(Y), sd(Y))
+pval <- rep(0,5)
+names(pval) <- c("max Y", "min Y", "range Y", "mean Y", "sd Y")
+
+for (i in 1:5) {
+  pval[i] <- mean(D1[,i] > D0[i])
+}
+pval
+```
+
+# SSVS
+```{r}
+
+beta <- NULL
+for(l in 1:2){
+    beta <- rbind(beta,samples[[l]])
+}
+names <-c("Int","SEQN", "cadium", "lead", "mercury", "PFDeA", "PFHxS", "PFNA", "nPFOA", "sbPFOA", 
+                    "age", "incomeration", "CRT")
+colnames(beta) <- names
+
+ for(j in 1:13){
+   hist(beta[,j],xlab=expression(beta[j]),ylab="Posterior density",
+         breaks=100,main=names[j])
+}
+```
+# SSVS Table
+```{r}
+library(knitr)
+  Inc_Prob <- apply(beta!=0,2,mean)
+   Q        <- t(apply(beta,2,quantile,c(0.5,0.025,0.975)))
+   out      <- cbind(Inc_Prob,Q)
+
+   kable(round(out,2))
+
+```
+
+## Model with only significant parameters Includes lead, mercury, age, and incomeratio
+
+```{r}
+Xsmall <- cbind(Xs[,3], Xs[,4], Xs[,10], Xs[,11])
+names(Xsmall) <- c("lead", "mercury", "age","incomeratio")
+```
+
+```{r}
+datanore <- list(Y=Y,X=Xsmall,n=n,p=ncol(Xsmall))
+model_string_no_re <- textConnection("model{
+
+   # Likelihood
+   for(i in 1:n){
+     Y[i] ~ dnorm(alpha + inprod(X[i,],beta[]),tau1)
+   }
+
+   # Priors
+   alpha ~ dnorm(0,0.01)
+   for(j in 1:p){beta[j] ~  dnorm(0, 0.0001)}
+   tau1 ~ dgamma(0.01,0.01)
+ }")
+modelnore <- jags.model(model_string_no_re,data = datanore, n.chains=2,quiet=TRUE)
+update(modelre, 10000, progress.bar="none")
+params <- c("alpha", "beta")
+samples2 <- coda.samples(modelnore, variable.names=params, n.iter=10000, progress.bar="none")
+```
+#Trace
+
+```{r}
+par(mar = c(1, 1, 1, 1))
+plot(samples2)
+```
+
+# Gel for model 2
+
+You can also embed plots, for example:
+
+```{r }
+sumnore <-summary(samples2)
+gelman.diag(samples2)
+```
+## DIC comparisons for model 1 and model 2
+```{r}
+DIC1 <- dic.samples(modelre, n.iter=10000,progress.bar="none")
+DIC2 <- dic.samples(modelnore, n.iter=10000,progress.bar="none")
+# 19004 
+# 19465 
+DIC1
+DIC2
+```
+
+
+## Neg Exp model
+```{r}
+Xsexp <- cbind(Xs[,4], Xs[,5], Xs[,8])
+```
+
+```{r}
+data_exp <- list(Y=Y,X=Xsexp,n=n,p=ncol(Xsexp))
+
+params <- c("D","alpha", "beta")
+
+# JAGS model
+model_string_exp <- textConnection("model{
+
+ # Likelihood
+ for (i in 1:n) {    
+   Y[i] ~ dnorm(mu[i], tau)
+    mu[i] <- alpha * exp(inprod(X[i,],-beta[])) 
+
+  }
+
+  # Priors   
+  alpha ~ dgamma(0.1, 0.1)
+  for(j in 1:p){beta[j]  ~ dgamma(0.1, 0.1)}
+  tau <- pow(sigma, -2)
+  sigma ~ dunif(0, 10)
+  
+    # PPC
+   for(i in 1:n){
+     Y2[i] ~ dnorm(mu[i], tau)
+     mu2[i] <- alpha * exp(inprod(X[i,],-beta[])) 
+   }
+   D[1] <- max(Y2[])
+   D[2] <- min(Y2[])
+   D[3] <- max(Y2[]) - min(Y2[])
+   D[4] <- mean(Y2[])
+   D[5] <- sd(Y2[])
+ }")
+
+
+modelexp <- jags.model(model_string_exp, data = data_exp,n.chains = 2,quiet=TRUE)
+```
+
+
+```{r}
+update(modelexp, 10000) 
+samplesexp <- coda.samples(modelexp, variable.names = params, n.iter = 10000)
+
+```
+
+```{r}
+summary(samplesexp)
+par(mar = c(1, 1, 1, 1))
+plot(samplesexp)
+```
+
+# Gel for model 3
+
+
+
+```{r }
+sumexp <-summary(samplesexp)
+gelman.diag(samplesexp)
+geweke.diag(samplesexp[[1]])
+```
+
+
+# DIC comparisons for model 1 and model 3
+```{r}
+# 19013
+DIC3 <- dic.samples(modelexp, n.iter=10000,progress.bar="none")
+DIC3
+```
+
+# PPC
+```{r}
+D1e <- samplesexp[[1]]
+D0 <- c(max(Y), min(Y), max(Y) - min(Y), mean(Y), sd(Y))
+pvalex <- rep(0,5)
+names(pvalex) <- c("max Y", "min Y", "range Y", "mean Y", "sd Y")
+
+for (i in 1:5) {
+  pvalex[i] <- mean(D1e[,i] > D0[i])
+}
+pvalex
+```
+
+
+
+
+
+

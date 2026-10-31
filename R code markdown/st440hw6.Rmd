@@ -1,0 +1,155 @@
+---
+title: "st440hw6r"
+author: "Logan Moy"
+date: "2025-04-06"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+
+library(rjags)
+
+## Data for 6
+library(geoR)
+gambia[1,]
+
+
+```
+
+## Problem 6
+
+# Data and Jags 6
+
+```{r}
+Y   <- gambia$pos
+X   <- gambia[,4:8]
+X   <- scale(X)
+
+# Fit logistic model
+mod <- textConnection("model{
+obs_mean <- mean(Y)
+#like
+ for(i in 1:n){
+  Y[i] ~ dbern(pi[i])
+  logit(pi[i]) <- beta[1] + X[i,1]*beta[2] +
+                  X[i,2]*beta[3] + X[i,3]*beta[4] +
+                  X[i,4]*beta[5] + X[i,5]*beta[6]
+ }
+ for(j in 1:6){
+  beta[j] ~ dnorm(0,0.01)
+ }
+ 
+# Posterior preditive checks
+
+  pred_mean <- mean(Y)
+ D <- pred_mean 
+ 
+}")
+
+data  <- list(Y=Y,X=X,n=length(Y))
+model <- jags.model(mod,data = data, n.chains=2,quiet=TRUE)
+update(model, 5000, progress.bar="none")
+samps <- coda.samples(model, variable.names=c("beta", "D"),
+                      n.iter=20000, progress.bar="none")
+```
+
+```{r}
+print(summary(samps))
+
+```
+
+# Checks for 6
+```{r}
+
+D0 <- mean(gambia$pos)
+Dnames <- c("Mean")
+
+pval1 <- rep(0,1)
+names(pval1)<- Dnames
+D1  <- samps[[1]]
+pval1 <- mean(D1[,1]>D0)
+
+```
+
+# pval1
+```{r}
+pval1
+```
+Choose wrong value/method for examining D I guess. If not we should choose a different model as p-value is 0. I think the model should be good though as 
+it uses some log reg (maybe use just that). 
+
+## Problem 8
+
+# Data for 8
+
+```{r}
+ovprop <- c(0.845,0.847,0.880,0.674,0.909, 0.898,0.770,0.801,0.802,0.875)
+makes <- c(64,72,55,27,75,24,28,66,40,13)
+totalattempts <- c(75,95,63,39,83,26,41,82,54,16)
+
+x <- log(ovprop/ (1 - ovprop))
+```
+
+# Jags 8
+```{r}
+data   <- list(Y = makes, N = totalattempts , X = x)
+params <- c("D","beta")
+
+model_string <- textConnection("model{
+   # Likelihood
+    for(i in 1:10){
+      Y[i]        ~ dbinom(p[i],N[i])
+      logit(p[i]) <- beta[1] + beta[2]*X[i]
+    }
+   # Priors
+    beta[1] ~ dnorm(0,0.01)
+    beta[2] ~ dnorm(0,0.01)
+    
+  # Posterior preditive checks
+  for(i in 1:10){
+    Y2[i]    ~  dbinom(p[i],N[i])
+    rate[i] <- Y2[i]/N[i]
+  }
+  D[1] <- min(Y2[])
+  D[2] <- max(Y2[])
+  D[3] <- max(Y2[])-min(Y2[])
+  D[4] <- min(rate[])
+  D[5] <- max(rate[])
+  D[6] <- max(rate[])-min(rate[])
+ }")
+ 
+model <- jags.model(model_string,data = data, n.chains=2,quiet=TRUE)
+update(model, 10000, progress.bar="none")
+samples1 <- coda.samples(model, variable.names=params, thin=5, n.iter=20000, progress.bar="none")
+
+
+```
+
+```{r}
+print(summary(samples1))
+```
+
+# Checks for 8
+
+```{r}
+rate <- makes / totalattempts
+D0 <- c(min(makes), max(makes), max(makes)-min(makes),
+            min(rate),max(rate),max(rate)-min(rate))
+Dnames <- c("Min makes", "Max makes", "Range makes", "Min rate", "Max rate", "Range rate")
+
+pval2 <- rep(0,6)
+names(pval2)<-Dnames
+D1  <- samples1[[1]]
+  for(j in 1:6){
+   pval2[j] <- mean(D1[,j]>D0[j]) 
+  }
+```
+
+# pval2
+```{r}
+pval2
+
+```
+Model looks nice as the makes' and rates' p-values
+are somewhat close to 0.5. The closest values to 1 and 0
+are from max makes .81. 

@@ -1,0 +1,128 @@
+---
+title: "Final308LoganMoy"
+author: "Logan Moy"
+date: "2024-04-16"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(knitr)
+```
+
+## Part 1
+
+#Reading in data and making an altered tibble
+
+```{r}
+housedata <-read_csv("https://www4.stat.ncsu.edu/~online/ST308/Data/lbmoy2_house.csv")
+
+housedata2 <- housedata %>% filter(LotShape != "IR2or3"&YearRemodAdd > 1963) %>% 
+            mutate("SaleinHT" = SalePrice/100000) %>%
+  select(-c(BsmtFinSF1, Neighborhood))
+
+kable((housedata2)[1:10,1:6], format = "simple")
+```
+
+
+
+#Summary statistics of housedata
+```{r}
+sumhd2 <- housedata %>% group_by(Electrical) %>%
+          summarize(meanSP = mean(SalePrice), stdSP = sd(SalePrice), quart1SP = quantile(SalePrice,probs = .25), quart3SP = quantile(SalePrice,probs = .75), 
+                    meanGC = mean(GarageCars), stdGC = sd(GarageCars), quart1GC = quantile(GarageCars,probs = .25), quart3GC = quantile(GarageCars,probs = .75),
+                    meanYB = mean(YearBuilt), stdYB = sd(YearBuilt), quart1YB = quantile(YearBuilt,probs = .25), quart3YB = quantile(YearBuilt,probs = .75))
+
+kable((sumhd2), format = "simple")
+```
+
+
+#Creating graphs and models
+```{r}
+g <-ggplot(housedata, aes(x = GarageCars, y = SalePrice, color = Electrical))
+g + geom_point()
+```
+Most of the Electrical types seem to be SBrkr and fewer are FuseA. Initally there is a mostly positive relationship between Garage car count and sales price, this changes with a count of 4 garage cars (this category has few data points so if there was more data a positive relationship still could be found).
+
+#Creating a MLR model
+```{r}
+houselm <-lm(SalePrice~ GarageCars + YearBuilt, data = housedata)
+
+summary(houselm)
+
+predict(houselm, newdata = data.frame(GarageCars = c(2,4), YearBuilt= c(1977, 2000)))
+```
+Both of the main effects are significant as both are less than 0.01. There is significant evidence that Garage Cars and Year Built have an effect on the Sale Price.
+
+## Part 2 Open Ended
+
+#Old code to read in dataset
+New data that interested me
+URL : https://archive.ics.uci.edu/dataset/45/heart+disease
+  Used the processed cleveland data
+Why it interests me: I just picked this out my old dataset was full of doubles and would not work nicely with the code
+1) Which sex (female = 0, male = 1) has higher cholesterol
+2) Comparing numeric summaries of resting heart rate (trestbps) vs thalach (maximum hear rate)
+3) Number of vessels vs thal
+
+```{r}
+heartdata <- read_csv("C:\\Users\\lbmoy2\\Downloads\\heart+disease\\processed.cleveland.data", col_names = FALSE, show_col_types = FALSE) %>%
+  rename("age" = X1,
+         "sex" = X2,
+         "cp" = X3,
+         "trestbps" = X4,
+         "chol" = X5,
+         "fbs" = X6,
+         "restecg" = X7,
+         "thalach" = X8,
+         "exang" = X9,
+         "oldpeak" = X10,
+         "slope" = X11,
+         "ca" = X12,
+         "thal" = X13,
+         "num" = X14)
+
+```
+
+# Custom Function for data of interest
+```{r}
+heartfunction = function(data,colname,group = NULL){
+
+  new_data = data[,colname]
+  
+  idx = sapply(new_data,is.numeric)
+  num_var = new_data[,idx]
+  cat_var = new_data[,!idx]
+  
+  if (length(num_var) == 0){
+    finallist = c()
+  }
+  if (length(cat_var) == 0){
+    table = "NA"
+  }
+  if (length(num_var) != 0 ) {
+    if (is.null(group )){ 
+      mean <- sapply(num_var, mean) 
+      var <- sapply(num_var, var) 
+      quantiles <- sapply(num_var, quantile, probs = c(0.05, 0.95)) 
+      finallist <- list( mean = mean, var = var, quantile = quantiles)
+    }
+         
+
+    if (!is.null(group)){ # 
+      finallist <- data %>% group_by(group) %>% summarize(mean = sapply(num_var, mean), var <- sapply(num_var, var), quantiles <- sapply(num_var, quantile, probs = c(0.05, 0.95)) )
+      }
+  }
+  if (length(cat_var) != 0 ){
+    table <- table(cat_var)
+}
+  return(list(finallist, table = table)) 
+  
+}
+#heartfunction(heartdata, c("chol"), group = heartdata$sex)
+heartfunction(heartdata,c("trestbps", "thalach"))
+heartfunction(heartdata,c("ca","thal"))
+
+
+```
+

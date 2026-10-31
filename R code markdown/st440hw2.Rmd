@@ -1,0 +1,81 @@
+---
+title: "st440hw2"
+author: "Logan Moy"
+date: "2025-01-22"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+install.packages("nnspat")
+library(nnspat)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+func <- function(x,y){ 
+  ((2 * pi) ^-1) *((1+x^2 + y^2)^-3/2)}
+    xval <- seq(-3,3, by = 1)
+    yval <- seq(-3,3, by = 1)
+    yeq <- mapply(func, xval, yval)
+    matplot(xval, yeq)
+#looks norm I guess, but has light tails
+comb <- cbind(yval, yeq)
+bvnorm.pdf(comb)
+print(cov(yval, yeq, method = "spearman"))
+    
+```
+
+```{r cars}
+func <- function(x,y){ 
+  ((2 * pi) ^-1) *((1+x^2 + y^2)^-3/2)}
+    xval <- seq(-3,3, by = 1)
+    yval3 <- rep(c(3),times=7)
+    yeq3 <- mapply(func, xval, yval3)
+    yval2 <- rep(c(2),times=7)
+    yeq2 <- mapply(func, xval, yval2)
+    yval1 <- rep(c(1),times=7)
+    yeq1 <- mapply(func, xval, yval1)
+    yval0 <- rep(c(0),times=7)
+    yeq0 <- mapply(func, xval, yval0)
+    matplot(xval, yeq0, type = "l")
+        matplot(xval, yeq1, type = "l")
+            matplot(xval, yeq2, type = "l")
+                matplot(xval, yeq3, type = "l")
+    
+```
+
+## 9
+``` {r}
+word = c("fun", "sun", "sit", "sat", "fan", "for")
+errorSun <- c(1,0,2,2,2,3)
+errorThe <- rep(c(3),times=6)
+errorFoo <- c(2,3,3,3,2,1)
+A <-2 #can change to 50
+theta <- 0.1 #can change to 0.95
+likelyWord <- ifelse(word == "for", A, 1)
+wordChance <- likelyWord / sum(likelyWord)
+
+likeSun <- (theta^errorSun) * (1-theta)^(3-errorSun)
+condSun <- likeSun * wordChance/ sum(likeSun * wordChance)
+print("Sun intended")
+print(condSun)
+
+likeThe <- (theta^errorThe) * (1-theta)^(3-errorThe)
+condThe <- likeThe * wordChance/ sum(likeThe * wordChance)
+print("The intended")
+print(condThe)
+
+likeFoo <- (theta^errorFoo) * (1-theta)^(3-errorFoo)
+condFoo <- likeFoo * wordChance/ sum(likeFoo * wordChance)
+print("Foo intended")
+print(condFoo)
+```
+You can also embed plots, for example:
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

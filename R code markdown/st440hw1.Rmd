@@ -1,0 +1,63 @@
+---
+title: "st440 hw1"
+author: "Logan Moy"
+date: "2025-01-07"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+
+library(readxl)
+```
+
+## 2A
+
+```{r }
+growdata <-read_csv("C:\\Users\\lbmoy2\\Downloads\\Growth curves data.csv", show_col_types = FALSE)
+
+
+
+growdata %>%
+  group_by(Taxon) %>%
+  summarise(mean = mean(Mass), sd = sd(Mass))
+
+```
+
+```{r, echo=FALSE}
+meanv <- c(0,0,0,0)
+  cumsum <- 0
+for(i in 1 : 4){
+
+  countD = 0
+  for (j in 1:20) {
+    if (growdata$`Taxon ID`[j] == i) {
+      countD <- countD + 1
+    }
+  }
+
+  meanv[i] <- mean(growdata$Mass[1:countD])
+  cumsum <- cumsum+ countD
+  print(countD)
+  print(cumsum)
+}
+```
+
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r, echo=FALSE}
+g <-ggplot(growdata, aes(x = Age, y = Mass, shape = Taxon))
+g + geom_point()
+
+lm(formula = log(Mass) ~ log(Age), data = growdata)
+```
+
+T-rex seems to be the most different compared to the rest of the taxons. T-rex looks like it has the larger mass and grows at a higher rate compared to the rest of the taxons. The other taxons look relative in terms of avg mass and growth rate. Maybe Albertosaurus is larger.
+
+Linear: A dino at age 0 will have a mass of 9.92 or e^2.295. Every one year increase in age will result in a mass increase of 5.78
+

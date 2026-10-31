@@ -1,0 +1,108 @@
+---
+title: "HW2"
+author: "Logan Moy"
+date: "2024-03-18"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(readxl)
+library(dplyr)
+library(moments)
+library(readr)
+```
+
+## Part1
+
+Reading in Data (question 1)
+
+```{r}
+beandata <- read_xlsx("C:\\Users\\lbmoy2\\Downloads\\lbmoy2_beans.xlsx")
+
+```
+
+The data has been read into the object `beandata`. This object is a `r typeof(beandata)` that has `r length(beandata[1,])` variables and `r length(beandata[,1])` observations.
+
+
+Modifying beandata by filtering (obs and vars), simplifying var names, and adding new summary variables (question 2)
+
+```{r}
+modbean <- beandata %>%
+             select(-c(Eccentricity, Solidity)) %>%
+               rename("LengthMaj" = MajorAxisLength, "LengthMin" = MinorAxisLength) %>%
+                 filter(Class %in% c("CALI", "HOROZ", "SEKER", "SIRA", "DERMASON")) %>%
+                   mutate("AvgMaj" = mean(LengthMaj), "AvgMin" = mean(LengthMin) ) %>%
+                     mutate("PerimCate" = if_else(Perimeter > 804.048, "Largest", if_else(Perimeter > 706.901, "Medium", "Lowest"))) %>%
+                       arrange(desc(Extent))
+
+print(as_tibble(modbean))
+```
+
+
+
+
+Making 2-way Contingency table (question 3)
+
+```{r}
+modbean %>% 
+  filter(LengthMaj < 404.4919)
+
+table(modbean$Class, modbean$PerimCate) 
+
+
+
+```
+The top left number is the number of cali beans that have the largest perimeter.
+
+
+Numeric Summary (question 4)
+```{r}
+modbean %>%
+  group_by(Class) %>%
+    summarize(AvgAr = mean(Area), AvgPer = mean(Perimeter),  MinAr = min(Area), MinPer = min(Perimeter) ,
+            SkewAr = skewness(Area), SkewPer = skewness(Perimeter) , VarAr = var(Area), AvgPer = var(Perimeter))
+
+```
+The cali bean has an avg area of 75519.73, avg perimeter of 4730.073, a min area of 45666 and min perimeter of 789.770.
+Its skewness of the area is 0.44478747 and the skewness of the perimeter is 0.1495999 (both are more positively skewed). The variance is 91721871.
+
+
+## Part2
+
+URL : https://archive.ics.uci.edu/dataset/42/glass+identification
+
+Why it interests me: I just picked this out because it said glass and I think reflections are cool. The contents don't interest me too much, nor do I know why this data is important.
+
+Reading in Data
+```{r}
+glassdata <- read_csv("C:\\Users\\lbmoy2\\Downloads\\glass+identification\\glass.data", col_names = FALSE, show_col_types = FALSE) %>%
+  rename("Id" = X1,
+         "Refrac_index" = X2,
+         "Sodium" = X3,
+         "Magnesium" = X4,
+         "Aluminum" = X5,
+         "Silicon" = X6,
+         "Potassium" = X7,
+         "Calcium" = X8,
+         "Barium" = X9,
+         "Iron" = X10,
+         "Type_of_glass" = X11)
+```
+
+Two questions (that can be answered)
+1) What is the max refraction index?
+
+2) How do the averages of elements compare to one another?
+
+Summary Stats and Tables
+```{r}
+glassdata %>%
+  group_by(Type_of_glass) %>%
+    summarize( max = max(Refrac_index))
+glassdata %>%
+  summarize(smean = mean(Sodium), mmean = mean(Magnesium),amean = mean(Aluminum),simean = mean(Silicon),pmean = mean(Potassium),cmean = mean(Calcium),bmean = mean(Barium),imean = mean(Iron))
+
+```
+
+1)Max Refraction Index is from type 2 glass with 1.534
+2) Silicon is obviously has the highest concentration in glass and the next is sodium.

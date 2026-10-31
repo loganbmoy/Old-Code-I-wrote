@@ -1,0 +1,225 @@
+---
+title: "st440Exam1"
+author: "Logan Moy"
+date: "2025-02-11"
+output: pdf_document
+---
+## Set Up
+```{r setup, include=FALSE}
+library(dplyr)
+data(storms)
+storms <- storms[!is.na(storms$category),] # Only analyze hurricanes
+year   <- storms$year
+name   <- paste0(storms$name,"_",storms$year)
+wind   <- storms$wind
+uni    <- unique(name)
+```
+
+## Given Code
+
+```{r}
+# Compute the maximum wind speed by storm
+n          <- length(uni)
+year_storm <- rep(0,n)
+mxspd      <- rep(0,n)
+for(i in 1:length(uni)){
+  year_storm[i] <- min(year[name==uni[i]])
+  mxspd[i]      <- max(wind[name==uni[i]])
+} 
+
+```
+
+
+
+```{r}
+# Compute the number of storms per year
+ 
+year <- as.numeric(names(table(year_storm)))
+cnt  <- as.vector(table(year_storm))
+
+plot(year_storm,mxspd,xlab="Year",ylab="Max wind speed (knots)")
+plot(year,cnt,xlab="Year",ylab="Number of hurricanes")
+```
+
+##Further Data Manipulations
+
+```{r}
+# Dividing the Datasets based on year. Period 1 is 1975-1999, Period 2 is 2000-2021
+period1 <- year[!is.na(year)]
+period1 <- year[year >= 1975 & year <= 1999]
+period1_storm <-year_storm[!is.na(year_storm) & year_storm >= 1975 & year_storm <= 1999]
+
+period2 <- year[!is.na(year)]
+period2 <- year[year >= 2000 & year <= 2021]
+period2_storm <-year_storm[!is.na(year_storm) & year_storm >= 2000 & year_storm <= 2021]
+
+# Speed
+# log of spd to make domain neg infinity to pos
+# Centering wind speed at 0 so -65 as that was the min speed
+
+speedperiod1 <- log(mxspd[1:143]) - log(65)
+speedperiod2 <- log(mxspd[143:310]) - log(65)
+
+
+```
+
+
+
+## Wind Speed Analysis
+
+```{r}
+S <- 10000
+
+normal_Gibbs <- function(Y, n.iters = 30000,
+ m=0.1, a=0.1, b=0.1){ # define the priors
+ n <- length(Y)
+ # Initial values
+ mu <- mean(Y)
+ s2 <- var(Y)
+ keep.mu <- rep(0,n.iters)
+ keep.sigma <- rep(0,n.iters)
+ keep.mu[1] <- mu
+ keep.sigma[1] <- sqrt(s2)
+ for(iter in 2:n.iters){
+ # sample mu|s2,Y
+ MN <- sum(Y)/(n+m)
+ VR <- s2/(n+m)
+ mu <- rnorm(1,MN,sqrt(VR))
+ # sample s2|mu,Y
+ A <- a + n/2
+ B <- b + sum((Y-mu)^2)/2
+ s2 <- 1/rgamma(1,A,B)
+ # keep track of the results
+ keep.mu[iter] <- mu
+ keep.sigma[iter] <- sqrt(s2)
+ }
+out <- list(mu=keep.mu,sigma=keep.sigma)
+return(out)}
+
+set.seed(111)
+
+spd1 <- normal_Gibbs(speedperiod1)
+spd2 <- normal_Gibbs(speedperiod2)
+
+plot(spd1$mu,type="l")
+plot(spd1$sigma,type="l")
+
+plot(spd2$mu,type="l")
+plot(spd2$sigma,type="l")
+
+
+```
+## Speed comparison and interval
+
+```{r}
+t.test(spd1$mu,spd2$mu, alternative = "less")
+```
+
+
+
+
+## Hurricane Count Analysis
+
+```{r}
+lambda <- seq(0.1,10,length=100)
+a <- 0.1
+b <- 0.1
+yCountperiod1 <- length(period1_storm)
+yCountperiod2 <- length(period2_storm)
+
+
+Nperiod1 <- 25
+Nperiod2 <- 22
+
+#Plots period1 and adds period2 as a line
+ plot(lambda, dgamma(lambda, yCountperiod1 + a, Nperiod1 + b), type = "l", col = "blue",
+      xlab = expression(lambda), ylab = "Posterior Distribution")
+ lines(lambda, dgamma(lambda, yCountperiod2 + a, Nperiod2 + b), col = "red")
+legend("topleft",c("1975-1999","2000-2021"),lwd=2,col=c("blue","red"))
+
+
+# MC sampling to compare means
+ set.seed(111)
+lambda_p1 <- rgamma(S,yCountperiod1 + a, Nperiod1 + b)
+lambda_p2 <- rgamma(S,yCountperiod2 + a, Nperiod2 + b)
+mean(lambda_p1)
+mean(lambda_p2)
+
+mean(lambda_p1<lambda_p2)
+
+```
+## Uncertainty
+
+```{r}
+summary(spd2$mu - spd1$mu)
+summary(lambda_p2 - lambda_p1)
+
+qlowcountp1 <- qgamma(0.025,yCountperiod1 + a, Nperiod1 + b)
+qhighcountp1 <- qgamma(0.975,yCountperiod1 + a, Nperiod1 + b)
+qlowcountp2 <- qgamma(0.025,yCountperiod2 + a, Nperiod2 + b)
+qhighcountp2 <- qgamma(0.975,yCountperiod2 + a, Nperiod2 + b)
+qtable <- round(matrix(c(qlowcountp1,qlowcountp2,qhighcountp1,qhighcountp2), nrow=2),2)
+rownames(qtable)<- c("Period 1","Period 2")
+colnames(qtable) <- c("lowerQuantile","upperQuantile")
+qtable
+```
+
+## Table
+```{r}
+meanC <- mean(lambda_p2 - lambda_p1)
+sdC <- sd(lambda_p2 - lambda_p1)
+meanS <- mean(spd2$mu - spd1$mu)
+sdS <- sd(spd2$sigma - spd1$sigma)
+stormtab <- matrix(c(meanC,meanS,sdC,sdS), ncol=2)
+rownames(stormtab)<- c("Count","Speed")
+colnames(stormtab) <- c("Mean","SD")
+stormtab
+```
+
+
+## Sensitivity For Speed
+
+``` {r}
+spd1test1 <- normal_Gibbs(speedperiod1,m=1, a=1, b=1)
+spd2test1 <- normal_Gibbs(speedperiod2,m=1, a=1, b=1)
+
+plot(spd1test1$mu,type="l")
+plot(spd1test1$sigma,type="l")
+
+plot(spd2test1$mu,type="l")
+plot(spd2test1$sigma,type="l")
+```
+
+## Sensitivity For Speed
+
+``` {r}
+spd1test2 <- normal_Gibbs(speedperiod1,m=0.01, a=0.01, b=0.01)
+spd2test2 <- normal_Gibbs(speedperiod2,m=0.01, a=0.01, b=0.01)
+
+plot(spd1test2$mu,type="l")
+plot(spd1test2$sigma,type="l")
+
+plot(spd2test2$mu,type="l")
+plot(spd2test2$sigma,type="l")
+```
+
+
+## Sensitivity For Count
+
+``` {r}
+set.seed(111)
+a <- 1
+b <- 1
+lamp1sentest1 <- rgamma(S,yCountperiod1 + a, Nperiod1 + b)
+lamp2sentest1 <- rgamma(S,yCountperiod1 + a, Nperiod1 + b)
+mean(lamp1sentest1)
+mean(lamp2sentest1)
+
+a <- 0.01
+b <- 0.01
+lamp1sentest2 <- rgamma(S,yCountperiod1 + a, Nperiod1 + b)
+lamp2sentest2 <- rgamma(S,yCountperiod1 + a, Nperiod1 + b)
+mean(lamp1sentest2)
+mean(lamp2sentest2)
+
+```
