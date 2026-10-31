@@ -1,0 +1,83 @@
+---
+title: "St495Assignment4"
+author: "Logan Moy"
+date: "2026-02-11"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(scales)
+library(viridis)
+library(mosaicData)
+```
+
+## Data
+```{r}
+data("Marriage")
+```
+
+## Graph 1
+
+```{r}
+off_counts <- Marriage %>%
+  count(officialTitle) %>%
+  mutate(is_top = n == max(n))
+
+top_off <- off_counts %>% filter(is_top) %>% pull(officialTitle)
+
+
+
+Marriage %>%
+  count(officialTitle) %>%
+  mutate(highlight = if_else(officialTitle == top_off, "Most Common Official", "Other")) %>%
+  ggplot(aes(x = reorder(officialTitle, n), y = n, fill = highlight)) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_manual(values = c("Most Common Official" = "salmon", "Other" = "gray70")) +
+  theme_minimal() +
+  labs(
+    title = paste("In Mobile County, the most common offical is a ", top_off),
+    x = NULL,
+    y = "Number of Officials",
+    fill = NULL
+  )
+```
+The key take away is that marriage officials are overwhelmingly preferred over the alternatives in officiating a marriage in this county. A bar chart is effective as it allows the viewer to see how prevalent choosing a marriage official is to the other choices. It also shows that most of the people in this county choose a marriage official, pastor, or a minister over the other choices. The graph is relatively minimalist and uses a lot of grey.
+
+## Graph 2
+
+
+```{r}
+# add column to race_counts to isolate "White"
+off_counts2 <- off_counts %>%
+  mutate(fill_group = if_else(officialTitle %in% c("MARRIAGE OFFICIAL", "ELDER", "CIRCUIT JUDGE", "CHIEF CLERK"), "Non-Religious", "Religious"))
+
+ggplot(off_counts2, aes(x = 2, y = n, fill = fill_group)) +
+  geom_col(color = "white", width = 1) +
+  coord_polar(theta = "y") +
+  xlim(0.5, 2.5) +
+  geom_text(
+    aes(label = if_else(n>10,officialTitle,"")),
+    position = position_stack(vjust = 0.5),
+    size = 4
+  ) +
+  scale_fill_manual(
+    values = c(
+      "Non-Religious" = "red",
+      "Religious" = "steelblue2"
+    )
+  ) +
+  theme_void() +
+  labs(
+    title = "Proportion of Religious and non-Religious officals are similar in Mobile",
+    subtitle = "Counts by officials in the Marriage dataset"
+  ) +
+  theme(
+    legend.position = "none",
+    plot.title.position = "plot",
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  )
+```
+The key takeaway is that the people of Mobile county have no preference when it comes to religious vs non-religious officiants for marriage. While marriage officials are used the most, the combination of all religious party counts cause that group to be the most common. This graph labels the three dominate groups to show how similar they are (rest of the groups aren't labelled due to their small size). The pie chart lets the view see that both groups have a similar proportion of officials. Also religious/non-religious are colored with contrasting colors.

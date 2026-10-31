@@ -1,0 +1,98 @@
+---
+title: "St495Assignment2"
+author: "Logan Moy"
+date: "2026-01-22"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+#install.packages("scales")
+#install.packages("tidyverse")
+#install.packages("viridis")
+
+library(tidyverse)
+library(scales)
+library(viridis)
+```
+
+
+```{r}
+# 1) Load data (same source used in Ch. 3)
+url <- "https://tinyurl.com/mtktm8e5"
+insurance <- read.csv(url)
+
+# 2) Create obesity indicator (BMI >= 30)
+insurance$obese <- ifelse(insurance$bmi >= 30, "obese", "not obese")
+```
+
+## Plot 1 
+
+```{r Plot1}
+p1 <- insurance %>% ggplot(aes(x = age, y = expenses, color = obese)) + geom_point() + geom_smooth()
+p1
+```
+Message: 
+The simple graph above displays the positive relationship between age of a policy holder and their expenses, being obese can increase expeneses and there might be an additional effect that isn't studied.
+
+Design Justification:
+Made a simple graph with barely any modifications.  
+The combination of obese and smoothing doesn't look that good as the lines dont match up with the data points.
+Added smooth to show that most points are still outside the CI.
+
+
+## Plot 2
+
+```{r Plot2 Facet}
+order <- c("northwest", "northeast", "southwest", "southeast")
+
+p2 <- insurance %>% ggplot(aes(x = expenses, color = obese)) + geom_boxplot(outlier.color = "purple")  + facet_wrap(~ factor(region, levels = order)) +  scale_x_continuous(breaks = seq(0, 60000, 20000), 
+                                        labels = scales::dollar) + theme(axis.title.y = element_blank(),
+                                                                         axis.text.y = element_blank(),
+                                                                         axis.ticks.y = element_blank()) +
+  scale_color_manual(
+    values = c("obese" = "red", "not obese" = "blue"),
+    breaks = c("obese", "not obese")
+  )
+p2
+```
+Message:
+Across all regions obesity seems to have little effect on the median of expenses.
+
+Design Justification:
+Changed the ordering of the facets to make things look nicer. The east regions were on the left originally and it makes more logicial to have them on the right.
+Removed y axis stuff, not really important as we are only looking at 1 variable.
+Separated every region into two groups based on obesity to see its effects.  
+Highlighted/changed the color of outliers as we can more easily see which group has the most/least outliers.
+Did some labelling of the x axis, just incuding the dollar sign and changing the scale.
+Changed the color of obesity status and ordering of legend
+
+
+## Plot 3
+
+```{r Plot2 modified}
+meanInsur <- mean(insurance$expenses)
+
+p3 <- insurance %>% ggplot(aes(x = expenses, color = obese)) + geom_boxplot(outlier.color = "purple")  + facet_wrap(~ factor(region, levels = order)) +  scale_x_continuous(breaks = seq(0, 60000, 20000), 
+                                        labels = scales::dollar) + 
+  scale_color_manual(
+    values = c("obese" = "red", "not obese" = "blue"),
+    breaks = c("obese", "not obese")
+  ) +
+  labs(
+    title = "SE expenses are more variable than other regions.",
+    subtitle = "Faceted by obesity status (BMI ≥ 30)",
+    x = "Expenses (USD)",
+    color = "Obsesity Status"
+  ) +
+  geom_vline(xintercept = meanInsur, linewidth = 0.8 ,linetype = "dashed",color = "black") + annotate("text", x = meanInsur + 17000, y = -.3, label = "Mean insurance price") +
+  theme_minimal(base_size = 10 ) + theme(axis.title.y = element_blank(), axis.text.y = element_blank(), axis.ticks.y = element_blank())
+p3
+```
+
+Message: (similar message to original)
+We are able to see that the southeast region has the least amount of outliers (people with lots of expbses) and seems to have the largest iqr (variety in expenses) especially when considering obese people.
+
+Design Justification:
+Adding mean line so the reader can see how skewed the data is and give them another measure of center (NE median is close to mean of expenses)
+Added title explains what is the point of the graphic and what being obese means
+Redid x axis for a bit more clarity also assisted by minimal theme

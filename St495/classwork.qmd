@@ -1,0 +1,38 @@
+---
+title: "class"
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+library(tidyverse)
+library(mosaicData)
+data("Marriage")
+```
+
+You can add options to executable code like this
+
+```{r}
+p <- ggplot(Marriage, aes (x = delay)) + geom_histogram(bins = 20, fill = "grey80") + labs(title = "Most of the marriages don't have delays between liscences and ceremonies", subtitle = "Delay length of marriage ceremony") + theme_minimal()
+
+
+p
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
+
+```{r}
+p2 <- ggplot(Marriage, aes(delay))+ geom_density(bw =2) + theme_minimal()
+p2
+
+p3 <- ggplot(Marriage, aes (x = delay))+ geom_histogram(aes (y = after_stat(density)),bins = 20, fill = "red") + labs(title = "Most of the marriages don't have delays between liscences and ceremonies", subtitle = "Delay length of marriage ceremony")  + geom_density(bw = 2, linewidth = 1) + theme_minimal()
+p3
+```
